@@ -3,7 +3,7 @@ import { Routes, Route, useNavigate, useSearchParams } from 'react-router-dom';
 import { Play, Pause, SkipBack, SkipForward, Music, LogOut, ChevronUp, ChevronDown } from 'lucide-react';
 import { redirectToAuthCodeFlow, getAccessToken, saveTokens, getSavedTokens, logout } from './SpotifyAuth';
 import { getPlaybackState, seekPosition, togglePlayPause, skipToNext, skipToPrevious } from './SpotifyAPI';
-import { fetchLyrics, LyricLine } from './LyricsService';
+import { fetchLyrics, type LyricLine } from './LyricsService';
 import './App.css';
 
 const POLL_INTERVAL = Number(import.meta.env.VITE_POLL_INTERVAL_MS) || 5000;
@@ -74,6 +74,7 @@ function DashboardView() {
   const pollTimerRef = useRef<number | null>(null);
   const interpolationTimerRef = useRef<number | null>(null);
   const currentTrackIdRef = useRef<string | null>(null);
+  const activeLyricRef = useRef<HTMLParagraphElement | null>(null);
 
   const fetchPlayback = async () => {
     try {
@@ -136,6 +137,20 @@ function DashboardView() {
     };
   }, [navigate]);
 
+  const currentLyricIndex = lyrics
+    ? lyrics.findLastIndex((l) => l.time <= displayProgress)
+    : -1;
+
+  // Auto-scroll to active lyric
+  useEffect(() => {
+    if (activeLyricRef.current) {
+      activeLyricRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }
+  }, [currentLyricIndex]);
+
   const handleSeek = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const newPos = parseInt(e.target.value);
     setDisplayProgress(newPos);
@@ -186,10 +201,6 @@ function DashboardView() {
 
   const { item, is_playing } = playback;
   const { album, name, artists, duration_ms } = item;
-
-  const currentLyricIndex = lyrics
-    ? lyrics.findLastIndex((l) => l.time <= displayProgress)
-    : -1;
 
   return (
     <div className={`dashboard-container ${showLyrics ? 'show-lyrics' : ''}`}>
@@ -256,6 +267,7 @@ function DashboardView() {
               lyrics.map((line, index) => (
                 <p 
                   key={index} 
+                  ref={index === currentLyricIndex ? activeLyricRef : null}
                   className={`lyric-line ${index === currentLyricIndex ? 'active' : ''} ${index > currentLyricIndex ? 'future' : ''}`}
                   onClick={() => {
                     setDisplayProgress(line.time);

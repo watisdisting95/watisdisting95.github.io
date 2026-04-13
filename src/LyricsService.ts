@@ -1,3 +1,5 @@
+import { get, set } from 'idb-keyval';
+
 export interface LyricLine {
   time: number; // Time in milliseconds
   text: string;
@@ -23,7 +25,16 @@ export const fetchLyrics = async (
   albumName: string,
   durationSeconds: number
 ): Promise<LyricLine[] | null> => {
+  const cacheKey = `lyrics_${artistName}_${trackName}_${durationSeconds}`;
+
   try {
+    // Check cache first
+    const cached = await get<LyricLine[]>(cacheKey);
+    if (cached) {
+      console.log(`Using cached lyrics for: ${trackName}`);
+      return cached;
+    }
+
     const params = new URLSearchParams({
       track_name: trackName,
       artist_name: artistName,
@@ -31,11 +42,7 @@ export const fetchLyrics = async (
       duration: durationSeconds.toString(),
     });
 
-    const response = await fetch(`${LRCLIB_BASE_URL}?${params.toString()}`, {
-      headers: {
-        'User-Agent': 'SpotifyDashboard/1.0.0 (https://github.com/user/spotify-dashboard)'
-      }
-    });
+    const response = await fetch(`${LRCLIB_BASE_URL}?${params.toString()}`);
 
     if (!response.ok) {
       if (response.status === 404) return null;
@@ -45,7 +52,10 @@ export const fetchLyrics = async (
     const data: LRCLyricResponse = await response.json();
 
     if (data.syncedLyrics) {
-      return parseSyncedLyrics(data.syncedLyrics);
+      const parsed = parseSyncedLyrics(data.syncedLyrics);
+      // Store in cache
+      await set(cacheKey, parsed);
+      return parsed;
     }
 
     return null;
