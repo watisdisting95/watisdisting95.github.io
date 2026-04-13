@@ -11,19 +11,21 @@ body {
   background-color: var(--spotify-black);
   color: var(--spotify-white);
   margin: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overflow: hidden;
 }
 
 #root {
-  width: 100%;
-  max-width: 500px;
-  padding: 20px;
+  width: 100vw;
+  height: 100vh;
 }
 
 .login-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
   text-align: center;
 }
 
@@ -45,16 +47,20 @@ body {
   transform: scale(1.05);
 }
 
-.dashboard {
+.dashboard-container {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  height: 100vh;
+  width: 100vw;
+  transition: background-color 0.5s ease;
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 20px 40px;
+  z-index: 10;
 }
 
 .attribution {
@@ -65,35 +71,50 @@ body {
   text-transform: uppercase;
 }
 
-.premium-note {
-  font-size: 12px;
-  color: var(--spotify-grey);
-  text-align: center;
-  margin-top: 16px;
-}
-
 .logout-icon-button {
   background: transparent;
   border: none;
   color: var(--spotify-grey);
   cursor: pointer;
+  transition: color 0.2s;
 }
 
 .logout-icon-button:hover {
   color: var(--spotify-white);
 }
 
+.dashboard-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  padding: 0 40px 40px;
+  gap: 40px;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.player-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  max-width: 500px;
+  margin: 0 auto;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .player-card {
+  width: 100%;
   background-color: var(--spotify-light-grey);
   border-radius: 12px;
-  padding: 24px;
+  padding: 32px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.5);
 }
 
 .artwork-container {
   width: 100%;
   aspect-ratio: 1;
-  margin-bottom: 24px;
+  margin-bottom: 32px;
   box-shadow: 0 4px 60px rgba(0,0,0,0.5);
 }
 
@@ -105,11 +126,11 @@ body {
 }
 
 .track-info {
-  margin-bottom: 24px;
+  margin-bottom: 32px;
 }
 
 .track-name {
-  font-size: 24px;
+  font-size: 32px;
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -117,7 +138,7 @@ body {
 }
 
 .artist-name {
-  font-size: 16px;
+  font-size: 18px;
   color: var(--spotify-grey);
   margin: 8px 0 0;
 }
@@ -126,8 +147,8 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 32px;
-  margin-bottom: 24px;
+  gap: 40px;
+  margin-bottom: 32px;
 }
 
 .control-button {
@@ -150,7 +171,7 @@ body {
   background-color: var(--spotify-white);
   color: black;
   border-radius: 50%;
-  padding: 12px;
+  padding: 16px;
 }
 
 .control-button.play-pause:hover {
@@ -160,7 +181,7 @@ body {
 .progress-container {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .progress-bar {
@@ -170,40 +191,145 @@ body {
   height: 4px;
 }
 
-.progress-bar:hover {
-  accent-color: #1ed760;
-}
-
 .time-info {
   display: flex;
   justify-content: space-between;
+  font-size: 14px;
+  color: var(--spotify-grey);
+}
+
+.premium-note {
   font-size: 12px;
   color: var(--spotify-grey);
+  text-align: center;
+  margin-top: 16px;
+}
+
+.lyrics-toggle {
+  margin-top: 24px;
+  background: transparent;
+  border: 1px solid var(--spotify-grey);
+  color: var(--spotify-white);
+  padding: 10px 20px;
+  border-radius: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+.lyrics-toggle:hover {
+  border-color: var(--spotify-white);
+  background-color: rgba(255,255,255,0.1);
+}
+
+/* Lyrics Section */
+.lyrics-section {
+  flex: 0;
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.show-lyrics .lyrics-section {
+  flex: 1.5;
+  width: auto;
+  opacity: 1;
+}
+
+.lyrics-content {
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 20px;
+  scroll-behavior: smooth;
+  mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+}
+
+.lyrics-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.lyrics-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.lyrics-content::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
+}
+
+.lyric-line {
+  font-size: 42px;
+  font-weight: 800;
+  margin: 40px 0;
+  line-height: 1.3;
+  color: var(--spotify-grey);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  transform-origin: left;
+}
+
+.lyric-line.active {
+  color: var(--spotify-white);
+  transform: scale(1.05);
+}
+
+.lyric-line:hover:not(.active) {
+  color: rgba(255,255,255,0.8);
+}
+
+.lyric-line.future {
+  filter: blur(1px);
+}
+
+.no-lyrics {
+  font-size: 24px;
+  color: var(--spotify-grey);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
 }
 
 .no-playback {
   display: flex;
   flex-direction: column;
   align-items: center;
-  text-align: center;
-  gap: 16px;
-  padding: 40px;
+  justify-content: center;
+  height: 100vh;
+  gap: 24px;
 }
 
 .logout-button {
-  background-color: transparent;
+  background: transparent;
   border: 1px solid var(--spotify-grey);
   color: var(--spotify-white);
-  padding: 8px 16px;
-  border-radius: 20px;
+  padding: 10px 24px;
+  border-radius: 24px;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 16px;
 }
 
-.loading, .error {
-  text-align: center;
-  font-size: 18px;
+@media (max-width: 900px) {
+  .dashboard-content {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  
+  .show-lyrics .lyrics-section {
+    width: 100%;
+    flex: none;
+    height: 500px;
+  }
+  
+  .lyric-line {
+    font-size: 28px;
+  }
 }

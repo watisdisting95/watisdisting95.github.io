@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { Routes, Route, useNavigate, useSearchParams } from 'react-router-dom';
-import { Play, Pause, SkipBack, SkipForward, Music, LogOut } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Music, LogOut, ChevronUp, ChevronDown } from 'lucide-react';
 import { redirectToAuthCodeFlow, getAccessToken, saveTokens, getSavedTokens, logout } from './SpotifyAuth';
 import { getPlaybackState, seekPosition, togglePlayPause, skipToNext, skipToPrevious } from './SpotifyAPI';
+import { fetchLyrics, LyricLine } from './LyricsService';
 import './App.css';
 
 const POLL_INTERVAL = Number(import.meta.env.VITE_POLL_INTERVAL_MS) || 5000;
@@ -66,10 +67,13 @@ function CallbackView() {
 function DashboardView() {
   const [playback, setPlayback] = useState<any>(null);
   const [displayProgress, setDisplayProgress] = useState<number>(0);
+  const [lyrics, setLyrics] = useState<LyricLine[] | null>(null);
+  const [showLyrics, setShowLyrics] = useState(false);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const pollTimerRef = useRef<number | null>(null);
   const interpolationTimerRef = useRef<number | null>(null);
+  const currentTrackIdRef = useRef<string | null>(null);
 
   const fetchPlayback = async () => {
     try {
@@ -79,6 +83,19 @@ function DashboardView() {
         setDisplayProgress(data.progress_ms);
       }
       setLoading(false);
+
+      // Check for new track and fetch lyrics
+      if (data?.item?.id && data.item.id !== currentTrackIdRef.current) {
+        currentTrackIdRef.current = data.item.id;
+        setLyrics(null);
+        const fetchedLyrics = await fetchLyrics(
+          data.item.name,
+          data.item.artists[0].name,
+          data.item.album.name,
+          Math.floor(data.item.duration_ms / 1000)
+        );
+        setLyrics(fetchedLyrics);
+      }
     } catch (err) {
       console.error(err);
       if (err instanceof Error && err.message === 'Unauthorized') {
@@ -170,8 +187,12 @@ function DashboardView() {
   const { item, is_playing } = playback;
   const { album, name, artists, duration_ms } = item;
 
+  const currentLyricIndex = lyrics
+    ? lyrics.findLastIndex((l) => l.time <= displayProgress)
+    : -1;
+
   return (
-    <div className="dashboard">
+    <div className={`dashboard-container ${showLyrics ? 'show-lyrics' : ''}`}>
       <div className="header">
         <div className="attribution">Powered by Spotify</div>
         <button className="logout-icon-button" onClick={logout} title="Logout">
@@ -179,44 +200,78 @@ function DashboardView() {
         </button>
       </div>
 
-      <div className="player-card">
-        <div className="artwork-container">
-          <img src={album.images[0]?.url} alt={album.name} className="artwork" />
-        </div>
-        
-        <div className="track-info">
-          <h2 className="track-name">{name}</h2>
-          <p className="artist-name">{artists.map((a: any) => a.name).join(', ')}</p>
+      <div className="dashboard-content">
+        <div className="player-section">
+          <div className="player-card">
+            <div className="artwork-container">
+              <img src={album.images[0]?.url} alt={album.name} className="artwork" />
+            </div>
+            
+            <div className="track-info">
+              <h2 className="track-name">{name}</h2>
+              <p className="artist-name">{artists.map((a: any) => a.name).join(', ')}</p>
+            </div>
+
+            <div className="controls">
+              <button onClick={() => handleSkip('prev')} className="control-button">
+                <SkipBack size={32} />
+              </button>
+              <button onClick={handleTogglePlay} className="control-button play-pause">
+                {is_playing ? <Pause size={48} fill="currentColor" /> : <Play size={48} fill="currentColor" />}
+              </button>
+              <button onClick={() => handleSkip('next')} className="control-button">
+                <SkipForward size={32} />
+              </button>
+            </div>
+
+            <div className="progress-container">
+              <input
+                type="range"
+                min="0"
+                max={duration_ms}
+                value={displayProgress}
+                onChange={handleSeek}
+                className="progress-bar"
+              />
+              <div className="time-info">
+                <span>{formatTime(displayProgress)}</span>
+                <span>{formatTime(duration_ms)}</span>
+              </div>
+            </div>
+          </div>
+          <p className="premium-note">Playback control requires Spotify Premium.</p>
+          
+          <button 
+            className="lyrics-toggle" 
+            onClick={() => setShowLyrics(!showLyrics)}
+          >
+            {showLyrics ? <ChevronDown size={24} /> : <ChevronUp size={24} />}
+            {showLyrics ? 'Hide Lyrics' : 'Show Lyrics'}
+          </button>
         </div>
 
-        <div className="controls">
-          <button onClick={() => handleSkip('prev')} className="control-button">
-            <SkipBack size={32} />
-          </button>
-          <button onClick={handleTogglePlay} className="control-button play-pause">
-            {is_playing ? <Pause size={48} fill="currentColor" /> : <Play size={48} fill="currentColor" />}
-          </button>
-          <button onClick={() => handleSkip('next')} className="control-button">
-            <SkipForward size={32} />
-          </button>
-        </div>
-
-        <div className="progress-container">
-          <input
-            type="range"
-            min="0"
-            max={duration_ms}
-            value={displayProgress}
-            onChange={handleSeek}
-            className="progress-bar"
-          />
-          <div className="time-info">
-            <span>{formatTime(displayProgress)}</span>
-            <span>{formatTime(duration_ms)}</span>
+        <div className="lyrics-section">
+          <div className="lyrics-content">
+            {lyrics ? (
+              lyrics.map((line, index) => (
+                <p 
+                  key={index} 
+                  className={`lyric-line ${index === currentLyricIndex ? 'active' : ''} ${index > currentLyricIndex ? 'future' : ''}`}
+                  onClick={() => {
+                    setDisplayProgress(line.time);
+                    seekPosition(line.time);
+                    setTimeout(fetchPlayback, 500);
+                  }}
+                >
+                  {line.text}
+                </p>
+              ))
+            ) : (
+              <p className="no-lyrics">Lyrics not available for this song.</p>
+            )}
           </div>
         </div>
       </div>
-      <p className="premium-note">Playback control requires Spotify Premium.</p>
     </div>
   );
 }
